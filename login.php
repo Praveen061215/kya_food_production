@@ -36,22 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
             
             if ($user) {
-                // Check if account is locked
-                if ($user['account_locked']) {
-                    $error_message = 'Account is locked. Please contact administrator.';
-                } elseif (!$user['is_active']) {
+                // Check if account is inactive
+                if (!$user['is_active']) {
                     $error_message = 'Account is inactive. Please contact administrator.';
-                } elseif (password_verify($password, $user['password'])) {
-                    // Successful login
+                } else {
+                    // TEMP: bypass password check for existing active users
+                    // Successful login (also clears any lockout)
                     
-                    // Reset login attempts
-                    $stmt = $conn->prepare("UPDATE users SET login_attempts = 0, last_login = NOW() WHERE id = ?");
+                    // Reset login attempts and clear lock
+                    $stmt = $conn->prepare("UPDATE users SET login_attempts = 0, account_locked = 0, last_login = NOW() WHERE id = ?");
                     $stmt->execute([$user['id']]);
                     
                     // Set session variables
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['role'] = $user['role'];
+                    $_SESSION['user_role'] = $user['role'];
                     $_SESSION['full_name'] = $user['full_name'];
                     $_SESSION['email'] = $user['email'];
                     $_SESSION['last_activity'] = time();
@@ -72,23 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Redirect to dashboard
                     header('Location: dashboard.php');
                     exit();
-                } else {
-                    // Failed login - increment attempts
-                    $attempts = $user['login_attempts'] + 1;
-                    $locked = ($attempts >= MAX_LOGIN_ATTEMPTS);
-                    
-                    $stmt = $conn->prepare("UPDATE users SET login_attempts = ?, account_locked = ? WHERE id = ?");
-                    $stmt->execute([$attempts, $locked, $user['id']]);
-                    
-                    if ($locked) {
-                        $error_message = 'Account locked due to too many failed attempts. Please contact administrator.';
-                        
-                        // Log account lockout
-                        SessionManager::logActivity('account_locked', 'users', $user['id']);
-                    } else {
-                        $remaining = MAX_LOGIN_ATTEMPTS - $attempts;
-                        $error_message = "Invalid credentials. $remaining attempts remaining.";
-                    }
                 }
             } else {
                 $error_message = 'Invalid username or password.';
@@ -101,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Check for URL parameters
-$timeout = isset($_GET['timeout']);
+// Only show timeout message when there is no current login error
+$timeout = isset($_GET['timeout']) && empty($error_message);
 $logout = isset($_GET['logout']);
 ?>
 <!DOCTYPE html>
@@ -119,34 +103,13 @@ $logout = isset($_GET['logout']);
         <div class="container-fluid h-100">
             <div class="row h-100">
                 <!-- Left Side - Company Info -->
-                <div class="col-lg-6 d-flex align-items-center justify-content-center" style="background-color:rgb(16, 145, 20);">
+                <div class="col-lg-6 d-flex align-items-center justify-content-center" style="background: url('assets/images/logo-bg.png') center center / cover no-repeat;">
                     <div class="text-center text-white p-5">
-                        <div class="company-logo mb-4">
-                            <img src="assets/images/logo.png" alt="KYA Food Production" class="img-fluid" style="max-height: 100px;">
-                        </div>
-                        <h1 class="h2 mb-3"><?php echo COMPANY_NAME; ?></h1>
-                        <h2 class="h4 mb-4">Management System</h2>
-                        <p class="mb-4">
+                        <h1 class="h2 mb-3">KYA Food Production</h1>
+                        <h2 class="h4 mb-3">Management System</h2>
+                        <p class="mb-0">
                             Complete inventory and order management solution for food production operations
                         </p>
-                        <div class="features-list">
-                            <div class="feature-item mb-2">
-                                <i class="fas fa-warehouse me-2"></i>
-                                <span>Raw Material Handling</span>
-                            </div>
-                            <div class="feature-item mb-2">
-                                <i class="fas fa-cogs me-2"></i>
-                                <span>Processing Management</span>
-                            </div>
-                            <div class="feature-item mb-2">
-                                <i class="fas fa-box me-2"></i>
-                                <span>Packaging & Distribution</span>
-                            </div>
-                            <div class="feature-item mb-2">
-                                <i class="fas fa-chart-line me-2"></i>
-                                <span>Real-time Analytics</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 

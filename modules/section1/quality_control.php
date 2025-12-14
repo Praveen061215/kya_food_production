@@ -17,6 +17,67 @@ $userInfo = SessionManager::getUserInfo();
 $db = new Database();
 $conn = $db->connect();
 
+$successMessage = '';
+$errorMessage = '';
+
+// Handle form submission for new quality inspection
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_inspection') {
+    try {
+        $batchNumber = sanitizeInput($_POST['batch_number'] ?? '');
+        $qualityGrade = sanitizeInput($_POST['quality_grade'] ?? 'A');
+        $status = sanitizeInput($_POST['status'] ?? 'pending');
+        $temperature = !empty($_POST['temperature']) ? floatval($_POST['temperature']) : null;
+        $humidity = !empty($_POST['humidity']) ? floatval($_POST['humidity']) : null;
+        $phLevel = !empty($_POST['ph_level']) ? floatval($_POST['ph_level']) : null;
+        $contaminationCheck = sanitizeInput($_POST['contamination_check'] ?? 'pass');
+        $visualInspection = sanitizeInput($_POST['visual_inspection'] ?? 'pass');
+        $notes = sanitizeInput($_POST['notes'] ?? '');
+        
+        // Validation
+        if (empty($batchNumber)) {
+            throw new Exception('Batch number is required');
+        }
+        
+        // Insert quality inspection
+        $stmt = $conn->prepare("
+            INSERT INTO quality_inspections (
+                section, batch_number, inspector_id, quality_grade, status,
+                temperature, humidity, ph_level, contamination_check, 
+                visual_inspection, notes, inspection_date
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        $stmt->execute([
+            $batchNumber,
+            $userInfo['id'],
+            $qualityGrade,
+            $status,
+            $temperature,
+            $humidity,
+            $phLevel,
+            $contaminationCheck,
+            $visualInspection,
+            $notes
+        ]);
+        
+        $successMessage = 'Quality inspection added successfully!';
+        logActivity('quality_inspection_created', "Quality inspection created for batch: $batchNumber", $userInfo['id']);
+        
+        // Redirect to avoid form resubmission
+        header('Location: quality_control.php?success=1');
+        exit();
+        
+    } catch (Exception $e) {
+        $errorMessage = 'Failed to add quality inspection: ' . $e->getMessage();
+        error_log('Quality inspection error: ' . $e->getMessage());
+    }
+}
+
+// Check for success message from redirect
+if (isset($_GET['success']) && $_GET['success'] == 1) {
+    $successMessage = 'Quality inspection added successfully!';
+}
+
 // Get filter parameters
 $status = $_GET['status'] ?? '';
 $grade = $_GET['grade'] ?? '';
@@ -25,21 +86,21 @@ $sort = $_GET['sort'] ?? 'inspection_date';
 $order = $_GET['order'] ?? 'DESC';
 
 // Build query conditions
-$whereConditions = ['section = 1'];
+$whereConditions = ['qi.section = ?'];
 $params = [1];
 
 if ($status) {
-    $whereConditions[] = "status = ?";
+    $whereConditions[] = "qi.status = ?";
     $params[] = $status;
 }
 
 if ($grade) {
-    $whereConditions[] = "quality_grade = ?";
+    $whereConditions[] = "qi.quality_grade = ?";
     $params[] = $grade;
 }
 
 if ($search) {
-    $whereConditions[] = "(batch_number LIKE ? OR notes LIKE ?)";
+    $whereConditions[] = "(qi.batch_number LIKE ? OR qi.notes LIKE ?)";
     $searchTerm = "%$search%";
     $params[] = $searchTerm;
     $params[] = $searchTerm;
@@ -113,6 +174,21 @@ include '../../includes/header.php';
 ?>
 
 <div class="content-area">
+    <!-- Success/Error Messages -->
+    <?php if ($successMessage): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i><?php echo htmlspecialchars($successMessage); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
+    <?php if ($errorMessage): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i><?php echo htmlspecialchars($errorMessage); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <?php endif; ?>
+    
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -404,26 +480,46 @@ include '../../includes/header.php';
                 <h5 class="modal-title">New Quality Inspection</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="newInspectionForm">
+            <form id="newInspectionForm" method="POST" action="quality_control.php">
+                <input type="hidden" name="action" value="add_inspection">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="batch_number" class="form-label">Batch Number</label>
+                                <label for="batch_number" class="form-label">Batch Number <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="batch_number" name="batch_number" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="quality_grade" class="form-label">Quality Grade</label>
+                                <label for="quality_grade" class="form-label">Quality Grade <span class="text-danger">*</span></label>
                                 <select class="form-select" id="quality_grade" name="quality_grade" required>
                                     <option value="">Select Grade</option>
-                                    <option value="A">Grade A - Excellent</option>
+                                    <option value="A" selected>Grade A - Excellent</option>
                                     <option value="B">Grade B - Good</option>
                                     <option value="C">Grade C - Fair</option>
                                     <option value="D">Grade D - Poor</option>
                                     <option value="F">Grade F - Failed</option>
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="pending" selected>Pending</option>
+                                    <option value="passed">Passed</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="conditional">Conditional</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="ph_level" class="form-label">pH Level</label>
+                                <input type="number" step="0.01" class="form-control" id="ph_level" name="ph_level" min="0" max="14">
                             </div>
                         </div>
                     </div>
@@ -437,13 +533,33 @@ include '../../includes/header.php';
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="humidity" class="form-label">Humidity (%)</label>
-                                <input type="number" step="0.1" class="form-control" id="humidity" name="humidity">
+                                <input type="number" step="0.1" class="form-control" id="humidity" name="humidity" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="contamination_check" class="form-label">Contamination Check</label>
+                                <select class="form-select" id="contamination_check" name="contamination_check">
+                                    <option value="pass" selected>Pass</option>
+                                    <option value="fail">Fail</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="visual_inspection" class="form-label">Visual Inspection</label>
+                                <select class="form-select" id="visual_inspection" name="visual_inspection">
+                                    <option value="pass" selected>Pass</option>
+                                    <option value="fail">Fail</option>
+                                </select>
                             </div>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional inspection notes..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -463,11 +579,10 @@ setInterval(function() {
     }
 }, 300000);
 
-// Handle new inspection form
+// Handle new inspection form - now properly submits
 document.getElementById('newInspectionForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Quality inspection functionality would be implemented here.');
-    bootstrap.Modal.getInstance(document.getElementById('newInspectionModal')).hide();
+    // Form will submit normally to the server
+    // No need to prevent default - let it submit
 });
 </script>
 

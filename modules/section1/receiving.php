@@ -70,7 +70,7 @@ function addReceivingRecord($data) {
             $data['category'], $data['quantity'], $data['unit'],
             $data['unit_cost'], $total_cost, $data['batch_number'],
             $data['expiry_date'], $data['quality_grade'], $data['temperature'],
-            $data['humidity'], $userInfo['user_id'], $data['notes']
+            $data['humidity'], $userInfo['id'], $data['notes']
         ]);
         
         return ['success' => true];
@@ -130,7 +130,7 @@ function getRecentReceivingRecords($limit = 20) {
         $stmt = $conn->prepare("
             SELECT r.*, u.full_name as received_by_name 
             FROM receiving_records r 
-            LEFT JOIN users u ON r.received_by = u.user_id 
+            LEFT JOIN users u ON r.received_by = u.id 
             ORDER BY r.received_date DESC 
             LIMIT ?
         ");
@@ -148,7 +148,7 @@ function getPendingReceivingApprovals() {
         $stmt = $conn->query("
             SELECT r.*, u.full_name as received_by_name 
             FROM receiving_records r 
-            LEFT JOIN users u ON r.received_by = u.user_id 
+            LEFT JOIN users u ON r.received_by = u.id 
             WHERE r.status = 'pending' 
             ORDER BY r.received_date ASC
         ");
@@ -163,7 +163,7 @@ function updateReceivingStatus($receiving_id, $status) {
     
     try {
         $stmt = $conn->prepare("UPDATE receiving_records SET status = ?, approved_date = NOW(), approved_by = ? WHERE id = ?");
-        $stmt->execute([$status, $userInfo['user_id'], $receiving_id]);
+        $stmt->execute([$status, $userInfo['id'], $receiving_id]);
         
         // If approved, add to inventory
         if ($status === 'approved') {

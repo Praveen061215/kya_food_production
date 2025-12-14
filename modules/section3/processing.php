@@ -214,13 +214,22 @@ $recentProcesses->execute($params);
 $recentProcessesList = $recentProcesses->fetchAll(PDO::FETCH_ASSOC);
 
 // Get inventory items for Section 3
-$inventoryItems = $conn->prepare("
+$inventoryStmt = $conn->prepare("
     SELECT * FROM inventory 
     WHERE section = 3 AND status = 'active' AND quantity > 0
     ORDER BY item_name
 ");
-$inventoryItems->execute();
-$inventoryItems = $inventoryItems->fetchAll(PDO::FETCH_ASSOC);
+$inventoryStmt->execute();
+$inventoryItems = $inventoryStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Debug: Check if we have inventory items
+if (empty($inventoryItems)) {
+    // Try to get any Section 3 items regardless of status
+    $debugStmt = $conn->prepare("SELECT COUNT(*) as count FROM inventory WHERE section = 3");
+    $debugStmt->execute();
+    $debugCount = $debugStmt->fetch(PDO::FETCH_ASSOC);
+    error_log("Section 3 inventory items: " . $debugCount['count']);
+}
 
 $pageTitle = 'Section 3 - Processing Management';
 include '../../includes/header.php';
@@ -242,6 +251,101 @@ include '../../includes/header.php';
             </a>
         </div>
     </div>
+
+    <!-- Placeholder for process tables and content -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Processing data will be displayed here. Use the "Start New Process" button above to create a new process.
+    </div>
+
+</div>
+
+<!-- Start Process Modal -->
+<div class="modal fade" id="startProcessModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Start New Process</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="processing.php">
+                <input type="hidden" name="action" value="start_process">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="item_id" class="form-label">Inventory Item <span class="text-danger">*</span></label>
+                            <select name="item_id" id="item_id" class="form-select" required>
+                                <option value="">Select Item</option>
+                                <?php if (empty($inventoryItems)): ?>
+                                    <option value="" disabled>No inventory items available for Section 3</option>
+                                <?php else: ?>
+                                    <?php foreach ($inventoryItems as $item): ?>
+                                        <option value="<?php echo $item['id']; ?>">
+                                            <?php echo htmlspecialchars($item['item_name']); ?> 
+                                            (<?php echo htmlspecialchars($item['item_code']); ?>) - 
+                                            <?php echo number_format($item['quantity'], 2); ?> <?php echo htmlspecialchars($item['unit']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <?php if (empty($inventoryItems)): ?>
+                                <div class="form-text text-danger">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    No active inventory items found for Section 3. Please add inventory items first.
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="process_type" class="form-label">Process Type <span class="text-danger">*</span></label>
+                            <select name="process_type" id="process_type" class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="packaging">Packaging</option>
+                                <option value="labeling">Labeling</option>
+                                <option value="quality_check">Quality Check</option>
+                                <option value="sorting">Sorting</option>
+                                <option value="palletizing">Palletizing</option>
+                                <option value="storage_prep">Storage Preparation</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="process_stage" class="form-label">Process Stage <span class="text-danger">*</span></label>
+                            <input type="text" name="process_stage" id="process_stage" class="form-control" 
+                                   placeholder="e.g., Initial, In Progress" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="input_quantity" class="form-label">Input Quantity <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" name="input_quantity" id="input_quantity" 
+                                   class="form-control" placeholder="Enter quantity" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="equipment_used" class="form-label">Equipment Used</label>
+                        <input type="text" name="equipment_used" id="equipment_used" class="form-control" 
+                               placeholder="e.g., Packaging Machine #3, Labeling Line A">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3" 
+                                  placeholder="Additional process notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Start Process
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
     <!-- Flash Messages -->
     <?php if (isset($_SESSION['flash_message'])): ?>

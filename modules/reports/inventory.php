@@ -33,11 +33,11 @@ $category = $_GET['category'] ?? '';
 $status = $_GET['status'] ?? '';
 $alertLevel = $_GET['alert_level'] ?? '';
 
-// Handle export
+// Handle export - redirect to export handler
 if (isset($_GET['export'])) {
-    $exportType = $_GET['export'];
-    header('Content-Type: application/json');
-    echo json_encode(['message' => 'Export functionality will be implemented for ' . $exportType]);
+    $queryParams = $_GET;
+    $exportUrl = 'export_inventory.php?' . http_build_query($queryParams);
+    header('Location: ' . $exportUrl);
     exit();
 }
 
@@ -179,13 +179,10 @@ include '../../includes/header.php';
                     <i class="fas fa-download me-2"></i>Export
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="?export=pdf&<?php echo http_build_query($_GET); ?>">
+                    <li><a class="dropdown-item" href="export_inventory.php?export=pdf&<?php echo http_build_query(array_filter($_GET, function($key) { return $key !== 'export'; }, ARRAY_FILTER_USE_KEY)); ?>">
                         <i class="fas fa-file-pdf me-2"></i>PDF Report
                     </a></li>
-                    <li><a class="dropdown-item" href="?export=excel&<?php echo http_build_query($_GET); ?>">
-                        <i class="fas fa-file-excel me-2"></i>Excel Report
-                    </a></li>
-                    <li><a class="dropdown-item" href="?export=csv&<?php echo http_build_query($_GET); ?>">
+                    <li><a class="dropdown-item" href="export_inventory.php?export=csv&<?php echo http_build_query(array_filter($_GET, function($key) { return $key !== 'export'; }, ARRAY_FILTER_USE_KEY)); ?>">
                         <i class="fas fa-file-csv me-2"></i>CSV Data
                     </a></li>
                 </ul>

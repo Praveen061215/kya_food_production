@@ -120,7 +120,7 @@ try {
     $currentRooms->execute();
     $rooms = $currentRooms->fetchAll(PDO::FETCH_ASSOC);
     
-    // Get overall statistics
+    // Get overall statistics - check today's data OR last 7 days if today is empty
     $statsStmt = $conn->prepare("
         SELECT 
             COUNT(*) as total_readings,
@@ -133,15 +133,24 @@ try {
             COUNT(CASE WHEN alert_triggered = 1 THEN 1 END) as alert_count,
             COUNT(DISTINCT room_id) as room_count
         FROM temperature_logs
-        WHERE section = 1 AND DATE(recorded_at) = CURDATE()
+        WHERE section = 1 AND recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     ");
     $statsStmt->execute();
     $stats = $statsStmt->fetch();
     
+    // If no stats, set defaults
+    if (!$stats || $stats['total_readings'] == 0) {
+        $stats = ['total_readings' => 0, 'avg_temp' => 0, 'min_temp' => 0, 'max_temp' => 0, 
+                  'avg_humidity' => 0, 'min_humidity' => 0, 'max_humidity' => 0, 
+                  'alert_count' => 0, 'room_count' => 0];
+    }
+    
 } catch (Exception $e) {
     error_log("Temperature monitor data error: " . $e->getMessage());
     $rooms = [];
-    $stats = ['total_readings' => 0, 'avg_temp' => 0, 'alert_count' => 0, 'room_count' => 0];
+    $stats = ['total_readings' => 0, 'avg_temp' => 0, 'min_temp' => 0, 'max_temp' => 0, 
+              'avg_humidity' => 0, 'min_humidity' => 0, 'max_humidity' => 0, 
+              'alert_count' => 0, 'room_count' => 0];
 }
 
 $pageTitle = 'Temperature Monitor - Section 1';

@@ -457,8 +457,8 @@ include '../../includes/header.php';
                                 <tr>
                                     <td>
                                         <strong><?php echo htmlspecialchars($log['batch_id']); ?></strong>
-                                        <?php if ($log['process_stage']): ?>
-                                            <br><small class="text-muted"><?php echo htmlspecialchars($log['process_stage']); ?></small>
+                                        <?php if (!empty($log['notes'])): ?>
+                                            <br><small class="text-muted" title="<?php echo htmlspecialchars($log['notes']); ?>"><?php echo htmlspecialchars(substr($log['notes'], 0, 30)) . (strlen($log['notes']) > 30 ? '...' : ''); ?></small>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -482,8 +482,9 @@ include '../../includes/header.php';
                                                 <span class="text-primary">Out: <?php echo number_format($log['output_quantity'], 2); ?></span>
                                             <?php endif; ?>
                                         </div>
-                                        <?php if ($log['waste_quantity'] > 0): ?>
-                                            <small class="text-danger">Waste: <?php echo number_format($log['waste_quantity'], 2); ?></small>
+                                        <?php if ($log['output_quantity'] && $log['input_quantity'] > $log['output_quantity']): ?>
+                                            <?php $waste = $log['input_quantity'] - $log['output_quantity']; ?>
+                                            <small class="text-danger">Waste: <?php echo number_format($waste, 2); ?></small>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -508,29 +509,21 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($log['temperature_start'] || $log['temperature_end']): ?>
-                                            <small>
-                                                <?php if ($log['temperature_start']): ?>
-                                                    Start: <?php echo $log['temperature_start']; ?>°C<br>
-                                                <?php endif; ?>
-                                                <?php if ($log['temperature_end']): ?>
-                                                    End: <?php echo $log['temperature_end']; ?>°C
-                                                <?php endif; ?>
-                                            </small>
+                                        <?php if ($log['temperature']): ?>
+                                            <small><?php echo number_format($log['temperature'], 1); ?>°C</small>
+                                            <?php if ($log['humidity']): ?>
+                                                <br><small><?php echo number_format($log['humidity'], 1); ?>% RH</small>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if ($log['quality_grade_input'] || $log['quality_grade_output']): ?>
-                                            <small>
-                                                <?php if ($log['quality_grade_input']): ?>
-                                                    In: <span class="badge bg-secondary"><?php echo $log['quality_grade_input']; ?></span><br>
-                                                <?php endif; ?>
-                                                <?php if ($log['quality_grade_output']): ?>
-                                                    Out: <span class="badge bg-secondary"><?php echo $log['quality_grade_output']; ?></span>
-                                                <?php endif; ?>
-                                            </small>
+                                        <?php if ($log['quality_check']): ?>
+                                            <?php 
+                                            $badgeClass = $log['quality_check'] === 'pass' ? 'success' : ($log['quality_check'] === 'fail' ? 'danger' : 'warning');
+                                            ?>
+                                            <span class="badge bg-<?php echo $badgeClass; ?>"><?php echo ucfirst($log['quality_check']); ?></span>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>

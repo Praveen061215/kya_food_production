@@ -29,14 +29,11 @@ $errorMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerName   = trim($_POST['customer_name'] ?? '');
     $customerEmail  = trim($_POST['customer_email'] ?? '');
-    $exportCountry  = trim($_POST['export_country'] ?? '');
+    $customerPhone  = trim($_POST['customer_phone'] ?? '');
+    $deliveryAddress = trim($_POST['delivery_address'] ?? '');
     $orderDate      = $_POST['order_date'] ?? date('Y-m-d');
-    $requiredDate   = $_POST['required_date'] ?? null;
-    $priority       = $_POST['priority'] ?? 'medium';
-    $currency       = $_POST['currency'] ?? 'USD';
     $totalAmount    = (float)($_POST['total_amount'] ?? 0);
-    // DB enum: pending, partial, paid, refunded
-    $paymentStatus  = $_POST['payment_status'] ?? 'pending';
+    $notes          = trim($_POST['notes'] ?? '');
 
     if ($customerName === '') {
         $errorMessage = 'Customer name is required.';
@@ -48,32 +45,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     order_number,
                     customer_name,
                     customer_email,
-                    export_country,
+                    customer_phone,
+                    delivery_address,
                     order_date,
-                    required_date,
                     status,
-                    priority,
                     total_amount,
-                    currency,
-                    payment_status,
-                    created_by,
-                    created_at,
-                    updated_at
+                    notes,
+                    created_by
                 ) VALUES (
-                    ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, NOW(), NOW()
+                    ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?
                 )");
 
             $stmt->execute([
                 $orderNumber,
                 $customerName,
                 $customerEmail ?: null,
-                $exportCountry ?: null,
+                $customerPhone ?: null,
+                $deliveryAddress ?: null,
                 $orderDate,
-                $requiredDate ?: null,
-                $priority,
                 $totalAmount,
-                $currency,
-                $paymentStatus,
+                $notes ?: null,
                 $userInfo['id'] ?? null
             ]);
 
@@ -129,63 +120,31 @@ include '../../includes/header.php';
                            value="<?php echo htmlspecialchars($_POST['customer_email'] ?? ''); ?>">
                 </div>
 
-                <div class="col-md-4">
-                    <label for="export_country" class="form-label">Export Country</label>
-                    <select name="export_country" id="export_country" class="form-select">
-                        <?php $countrySel = $_POST['export_country'] ?? ''; ?>
-                        <option value="" <?php echo $countrySel === '' ? 'selected' : ''; ?>>Select country...</option>
-                        <option value="Sri Lanka" <?php echo $countrySel === 'Sri Lanka' ? 'selected' : ''; ?>>Sri Lanka</option>
-                        <option value="India" <?php echo $countrySel === 'India' ? 'selected' : ''; ?>>India</option>
-                        <option value="USA" <?php echo $countrySel === 'USA' ? 'selected' : ''; ?>>USA</option>
-                        <option value="United Kingdom" <?php echo $countrySel === 'United Kingdom' ? 'selected' : ''; ?>>United Kingdom</option>
-                        <option value="Germany" <?php echo $countrySel === 'Germany' ? 'selected' : ''; ?>>Germany</option>
-                        <option value="France" <?php echo $countrySel === 'France' ? 'selected' : ''; ?>>France</option>
-                        <option value="Australia" <?php echo $countrySel === 'Australia' ? 'selected' : ''; ?>>Australia</option>
-                        <option value="Canada" <?php echo $countrySel === 'Canada' ? 'selected' : ''; ?>>Canada</option>
-                        <option value="Other" <?php echo $countrySel === 'Other' ? 'selected' : ''; ?>>Other</option>
-                    </select>
+                <div class="col-md-6">
+                    <label for="customer_phone" class="form-label">Customer Phone</label>
+                    <input type="tel" name="customer_phone" id="customer_phone" class="form-control"
+                           value="<?php echo htmlspecialchars($_POST['customer_phone'] ?? ''); ?>">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="order_date" class="form-label">Order Date</label>
                     <input type="date" name="order_date" id="order_date" class="form-control"
                            value="<?php echo htmlspecialchars($_POST['order_date'] ?? date('Y-m-d')); ?>">
                 </div>
-                <div class="col-md-4">
-                    <label for="required_date" class="form-label">Required Date</label>
-                    <input type="date" name="required_date" id="required_date" class="form-control"
-                           value="<?php echo htmlspecialchars($_POST['required_date'] ?? ''); ?>">
+
+                <div class="col-md-12">
+                    <label for="delivery_address" class="form-label">Delivery Address</label>
+                    <textarea name="delivery_address" id="delivery_address" class="form-control" rows="2"><?php echo htmlspecialchars($_POST['delivery_address'] ?? ''); ?></textarea>
                 </div>
 
-                <div class="col-md-4">
-                    <label for="priority" class="form-label">Priority</label>
-                    <select name="priority" id="priority" class="form-select">
-                        <?php $prioritySel = $_POST['priority'] ?? 'medium'; ?>
-                        <option value="low" <?php echo $prioritySel === 'low' ? 'selected' : ''; ?>>Low</option>
-                        <option value="medium" <?php echo $prioritySel === 'medium' ? 'selected' : ''; ?>>Medium</option>
-                        <option value="high" <?php echo $prioritySel === 'high' ? 'selected' : ''; ?>>High</option>
-                        <option value="urgent" <?php echo $prioritySel === 'urgent' ? 'selected' : ''; ?>>Urgent</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="currency" class="form-label">Currency</label>
-                    <input type="text" name="currency" id="currency" class="form-control"
-                           value="<?php echo htmlspecialchars($_POST['currency'] ?? 'USD'); ?>">
-                </div>
-                <div class="col-md-4">
-                    <label for="total_amount" class="form-label">Estimated Total Amount</label>
+                <div class="col-md-6">
+                    <label for="total_amount" class="form-label">Total Amount (₹)</label>
                     <input type="number" step="0.01" min="0" name="total_amount" id="total_amount" class="form-control"
                            value="<?php echo htmlspecialchars($_POST['total_amount'] ?? '0'); ?>">
                 </div>
 
-                <div class="col-md-4">
-                    <label for="payment_status" class="form-label">Payment Status</label>
-                    <?php $paySel = $_POST['payment_status'] ?? 'pending'; ?>
-                    <select name="payment_status" id="payment_status" class="form-select">
-                        <option value="pending" <?php echo $paySel === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                        <option value="partial" <?php echo $paySel === 'partial' ? 'selected' : ''; ?>>Partially Paid</option>
-                        <option value="paid" <?php echo $paySel === 'paid' ? 'selected' : ''; ?>>Paid</option>
-                        <option value="refunded" <?php echo $paySel === 'refunded' ? 'selected' : ''; ?>>Refunded</option>
-                    </select>
+                <div class="col-md-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea name="notes" id="notes" class="form-control" rows="3"><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
                 </div>
 
                 <div class="col-12 mt-3">
@@ -198,35 +157,5 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
-
-<script>
-    // Auto-suggest currency based on selected export country
-    document.addEventListener('DOMContentLoaded', function () {
-        var countrySelect = document.getElementById('export_country');
-        var currencyInput = document.getElementById('currency');
-
-        if (!countrySelect || !currencyInput) return;
-
-        var countryToCurrency = {
-            'Sri Lanka': 'LKR',
-            'India': 'INR',
-            'USA': 'USD',
-            'United Kingdom': 'GBP',
-            'Germany': 'EUR',
-            'France': 'EUR',
-            'Australia': 'AUD',
-            'Canada': 'CAD'
-        };
-
-        countrySelect.addEventListener('change', function () {
-            var selected = countrySelect.value;
-            if (countryToCurrency[selected]) {
-                currencyInput.value = countryToCurrency[selected];
-            } else if (selected === '') {
-                currencyInput.value = 'USD';
-            }
-        });
-    });
-</script>
 
 <?php include '../../includes/footer.php'; ?>

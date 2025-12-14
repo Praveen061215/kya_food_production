@@ -81,7 +81,7 @@ CREATE TABLE `inventory` (
   `storage_humidity` decimal(5,2) DEFAULT NULL,
   `quality_grade` enum('A+','A','B','C','D') DEFAULT 'B',
   `status` enum('active','inactive','discontinued') DEFAULT 'active',
-  `alert_status` enum('ok','warning','critical') DEFAULT 'ok',
+  `alert_status` enum('normal','low_stock','critical','expiring_soon') DEFAULT 'normal',
   `notes` text DEFAULT NULL,
   `created_by` int(11) DEFAULT NULL,
   `updated_by` int(11) DEFAULT NULL,
@@ -118,20 +118,22 @@ DROP TABLE IF EXISTS `inventory_history`;
 CREATE TABLE `inventory_history` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `inventory_id` int(11) NOT NULL,
-  `change_type` enum('addition','deduction','adjustment','initial') NOT NULL,
+  `transaction_type` enum('in','out','adjustment','initial') NOT NULL,
   `quantity_change` decimal(10,3) NOT NULL,
   `previous_quantity` decimal(10,3) NOT NULL,
   `new_quantity` decimal(10,3) NOT NULL,
   `reference_type` enum('order','transfer','adjustment','receiving','other') DEFAULT NULL,
   `reference_id` int(11) DEFAULT NULL,
   `notes` text DEFAULT NULL,
-  `created_by` int(11) DEFAULT NULL,
+  `user_id` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`),
   KEY `inventory_id` (`inventory_id`),
   KEY `reference_type` (`reference_type`,`reference_id`),
   KEY `created_at` (`created_at`),
-  CONSTRAINT `inventory_history_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`id`) ON DELETE CASCADE
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `inventory_history_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `inventory_history_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table structure for table `inventory_transfers`
@@ -198,6 +200,78 @@ CREATE TABLE `inventory_logs` (
   CONSTRAINT `inventory_logs_ibfk_1` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table structure for table `receiving_records`
+DROP TABLE IF EXISTS `receiving_records`;
+CREATE TABLE `receiving_records` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `supplier_name` varchar(255) NOT NULL,
+  `item_name` varchar(255) NOT NULL,
+  `item_code` varchar(50) NOT NULL,
+  `category` varchar(100) NOT NULL,
+  `quantity` decimal(10,3) NOT NULL,
+  `unit` varchar(20) NOT NULL,
+  `unit_cost` decimal(10,2) NOT NULL,
+  `total_cost` decimal(12,2) NOT NULL,
+  `batch_number` varchar(100) DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `quality_grade` enum('A+','A','B','C','D') DEFAULT 'B',
+  `temperature` decimal(5,2) DEFAULT NULL,
+  `humidity` decimal(5,2) DEFAULT NULL,
+  `received_by` int(11) NOT NULL,
+  `received_date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('pending','approved','rejected') DEFAULT 'pending',
+  `approved_by` int(11) DEFAULT NULL,
+  `approved_date` timestamp NULL DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `supplier_name` (`supplier_name`),
+  KEY `item_code` (`item_code`),
+  KEY `category` (`category`),
+  KEY `status` (`status`),
+  KEY `received_date` (`received_date`),
+  KEY `received_by` (`received_by`),
+  KEY `approved_by` (`approved_by`),
+  CONSTRAINT `receiving_records_ibfk_1` FOREIGN KEY (`received_by`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `receiving_records_ibfk_2` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for table `processing_logs`
+DROP TABLE IF EXISTS `processing_logs`;
+CREATE TABLE `processing_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `section` enum('1','2','3') NOT NULL,
+  `batch_id` varchar(50) NOT NULL,
+  `process_type` varchar(100) NOT NULL,
+  `item_id` int(11) DEFAULT NULL,
+  `input_quantity` decimal(10,3) NOT NULL,
+  `output_quantity` decimal(10,3) DEFAULT NULL,
+  `yield_percentage` decimal(5,2) DEFAULT NULL,
+  `start_time` timestamp NOT NULL DEFAULT current_timestamp(),
+  `end_time` timestamp NULL DEFAULT NULL,
+  `duration_minutes` int(11) DEFAULT NULL,
+  `operator_id` int(11) DEFAULT NULL,
+  `supervisor_id` int(11) DEFAULT NULL,
+  `temperature` decimal(5,2) DEFAULT NULL,
+  `humidity` decimal(5,2) DEFAULT NULL,
+  `quality_check` enum('pass','fail','pending') DEFAULT 'pending',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `section` (`section`),
+  KEY `batch_id` (`batch_id`),
+  KEY `process_type` (`process_type`),
+  KEY `item_id` (`item_id`),
+  KEY `operator_id` (`operator_id`),
+  KEY `supervisor_id` (`supervisor_id`),
+  KEY `start_time` (`start_time`),
+  CONSTRAINT `processing_logs_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `inventory` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `processing_logs_ibfk_2` FOREIGN KEY (`operator_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `processing_logs_ibfk_3` FOREIGN KEY (`supervisor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Table structure for table `orders`
 DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
@@ -207,6 +281,7 @@ CREATE TABLE `orders` (
   `customer_email` varchar(100) DEFAULT NULL,
   `customer_phone` varchar(20) DEFAULT NULL,
   `delivery_address` text DEFAULT NULL,
+  `order_date` date NOT NULL,
   `status` enum('pending','processing','shipped','delivered','cancelled') DEFAULT 'pending',
   `total_amount` decimal(12,2) NOT NULL DEFAULT 0.00,
   `notes` text DEFAULT NULL,
@@ -217,6 +292,7 @@ CREATE TABLE `orders` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `order_number` (`order_number`),
   KEY `status` (`status`),
+  KEY `order_date` (`order_date`),
   KEY `created_by` (`created_by`),
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,

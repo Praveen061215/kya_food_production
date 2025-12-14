@@ -914,7 +914,7 @@ try {
         <!-- Enhanced Modern Sidebar -->
         <nav class="sidebar enhanced-sidebar" id="sidebar">
             <div class="sidebar-header modern-sidebar-header">
-                <img src="<?php echo strpos($_SERVER['REQUEST_URI'], '/modules/') !== false ? '../../' : ''; ?>assets/images/logo.png" alt="KYA" class="sidebar-logo enhanced-logo">
+                <img src="<?php echo strpos($_SERVER['REQUEST_URI'], '/modules/') !== false ? '../../' : ''; ?>assets/images/logo.png.png" alt="KYA" class="sidebar-logo enhanced-logo">
                 <h4 class="sidebar-title modern-sidebar-title">KYA Food Production</h4>
                 <p class="sidebar-subtitle modern-sidebar-subtitle">Management System</p>
             </div>
@@ -1238,7 +1238,7 @@ try {
                         <div class="d-flex align-items-center justify-content-between">
                             <div class="system-family-info">
                                 <div class="system-brand">
-                                    <img src="<?php echo strpos($_SERVER['REQUEST_URI'], '/modules/') !== false ? '../../' : ''; ?>assets/images/logo.png" 
+                                    <img src="<?php echo strpos($_SERVER['REQUEST_URI'], '/modules/') !== false ? '../../' : ''; ?>assets/images/logo.png.png" 
                                          alt="KYA Logo" class="system-logo">
                                     <div class="brand-text">
                                         <h1 class="system-title">KYA Food Production</h1>

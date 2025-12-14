@@ -1,18 +1,26 @@
 <?php
-session_start();
-require_once '../../includes/config.php';
-require_once '../../includes/SessionManager.php';
+/**
+ * KYA Food Production - Financial Reports
+ * Generate and view financial reports and analytics
+ */
 
-// Check if user is logged in and has access to reports
-if (!SessionManager::isLoggedIn()) {
-    header('Location: ../../login.php');
+require_once '../../config/database.php';
+require_once '../../config/constants.php';
+require_once '../../config/session.php';
+require_once '../../includes/functions.php';
+
+SessionManager::start();
+SessionManager::requireLogin();
+
+// Check if user has access to reports
+if (!SessionManager::hasPermission('reports_view')) {
+    header('Location: ../../dashboard.php?error=access_denied');
     exit();
 }
 
-if (!SessionManager::canAccessSection(7)) { // Section 7 for Reports
-    header('Location: ../../dashboard.php');
-    exit();
-}
+$userInfo = SessionManager::getUserInfo();
+$db = new Database();
+$conn = $db->connect();
 
 // Get filter parameters
 $section_filter = isset($_GET['section']) ? $_GET['section'] : '';
@@ -145,13 +153,13 @@ include '../../includes/header.php';
             <p class="text-muted mb-0">Comprehensive financial analytics and cost management insights</p>
         </div>
         <div>
+            <button class="btn btn-warning me-2" onclick="generateInvoice()">
+                <i class="fas fa-file-invoice"></i> Generate Invoice
+            </button>
             <button class="btn btn-primary me-2" onclick="exportReport('pdf')">
                 <i class="fas fa-file-pdf"></i> Export PDF
             </button>
-            <button class="btn btn-success me-2" onclick="exportReport('excel')">
-                <i class="fas fa-file-excel"></i> Export Excel
-            </button>
-            <button class="btn btn-info" onclick="exportReport('csv')">
+            <button class="btn btn-success me-2" onclick="exportReport('csv')">
                 <i class="fas fa-file-csv"></i> Export CSV
             </button>
         </div>
@@ -495,7 +503,25 @@ function toggleCustomDates(period) {
 
 // Export functions
 function exportReport(format) {
-    alert('Export functionality would generate ' + format.toUpperCase() + ' financial report with current filters');
+    const urlParams = new URLSearchParams(window.location.search);
+    const section = urlParams.get('section') || '';
+    const period = urlParams.get('period') || 'current_month';
+    const dateFrom = urlParams.get('date_from') || '<?php echo date('Y-m-01'); ?>';
+    const dateTo = urlParams.get('date_to') || '<?php echo date('Y-m-d'); ?>';
+    
+    const exportUrl = `export_financial.php?format=${format}&section=${section}&period=${period}&date_from=${dateFrom}&date_to=${dateTo}`;
+    window.open(exportUrl, '_blank');
+}
+
+// Generate Invoice
+function generateInvoice() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const section = urlParams.get('section') || '';
+    const dateFrom = urlParams.get('date_from') || '<?php echo date('Y-m-01'); ?>';
+    const dateTo = urlParams.get('date_to') || '<?php echo date('Y-m-d'); ?>';
+    
+    const invoiceUrl = `generate_invoice.php?type=inventory&section=${section}&date_from=${dateFrom}&date_to=${dateTo}`;
+    window.open(invoiceUrl, '_blank');
 }
 </script>
 

@@ -1,18 +1,26 @@
 <?php
-session_start();
-require_once '../../includes/config.php';
-require_once '../../includes/SessionManager.php';
+/**
+ * KYA Food Production - Quality Reports
+ * Generate and view quality control reports and analytics
+ */
 
-// Check if user is logged in and has access to reports
-if (!SessionManager::isLoggedIn()) {
-    header('Location: ../../login.php');
+require_once '../../config/database.php';
+require_once '../../config/constants.php';
+require_once '../../config/session.php';
+require_once '../../includes/functions.php';
+
+SessionManager::start();
+SessionManager::requireLogin();
+
+// Check if user has access to reports
+if (!SessionManager::hasPermission('reports_view')) {
+    header('Location: ../../dashboard.php?error=access_denied');
     exit();
 }
 
-if (!SessionManager::canAccessSection(7)) { // Section 7 for Reports
-    header('Location: ../../dashboard.php');
-    exit();
-}
+$userInfo = SessionManager::getUserInfo();
+$db = new Database();
+$conn = $db->connect();
 
 // Get filter parameters
 $section_filter = isset($_GET['section']) ? $_GET['section'] : '';

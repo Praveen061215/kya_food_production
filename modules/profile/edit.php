@@ -103,7 +103,7 @@ include '../../includes/header.php';
             <h1 class="h3 mb-1">My Profile</h1>
             <p class="text-muted mb-0">View and update your profile details</p>
         </div>
-        <a href="../dashboard.php" class="btn btn-outline-secondary btn-sm">
+        <a href="../../dashboard.php" class="btn btn-outline-secondary btn-sm">
             <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
         </a>
     </div>

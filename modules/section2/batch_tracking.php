@@ -166,10 +166,10 @@ $recentActivities = $conn->prepare("
     SELECT 
         pl.batch_id,
         pl.process_type,
-        pl.process_stage,
         pl.start_time,
         pl.end_time,
         pl.yield_percentage,
+        pl.quality_check,
         i.item_name,
         u.username as operator_name,
         CASE 
@@ -514,8 +514,8 @@ include '../../includes/header.php';
                                             </div>
                                             <p class="mb-1 small">
                                                 <?php echo htmlspecialchars($activity['item_name'] ?? 'Unknown Item'); ?>
-                                                <?php if ($activity['process_stage']): ?>
-                                                    - <?php echo htmlspecialchars($activity['process_stage']); ?>
+                                                <?php if ($activity['quality_check']): ?>
+                                                    - Quality: <?php echo ucfirst($activity['quality_check']); ?>
                                                 <?php endif; ?>
                                             </p>
                                             <?php if ($activity['operator_name']): ?>
